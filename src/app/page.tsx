@@ -3,22 +3,24 @@
 import Image from "next/image";
 import { useState, useRef } from "react";
 
-const apikey: any = process.env.NEXT_PUBLIC_IMAGE_ENHANCEMENT_API_KEY;
+const apikey: string | undefined = process.env.NEXT_PUBLIC_IMAGE_ENHANCEMENT_API_KEY;
 
 export default function Home() {
-  const [currentImage, setCurrentImage] = useState<any>(null);
-  const [generatedImage, setGeneratedImage] = useState<any>(null);
-  const [loading, setLoading] = useState(false); // Loader state
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState<string>("");
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setCurrentImage(e.target?.result as string);
+        if (e.target?.result) {
+          setCurrentImage(e.target.result as string);
+        }
       };
       reader.readAsDataURL(selectedFile);
     }
@@ -29,42 +31,40 @@ export default function Home() {
   };
 
   const handleGenerateImage = async () => {
-    if (description.length === 0 || !currentImage) return;
+    if (!description || !currentImage) return;
 
-    setLoading(true); // Start loading
+    setLoading(true);
 
     try {
       const formData = new FormData();
-      formData.append('background.prompt', description);
-      formData.append('outputSize', '1000x1000');
-      formData.append('padding', '0.1');
+      formData.append("background.prompt", description);
+      formData.append("outputSize", "1000x1000");
+      formData.append("padding", "0.1");
 
       const base64Response = await fetch(currentImage);
       const blob = await base64Response.blob();
-      formData.append('imageFile', blob);
+      formData.append("imageFile", blob);
 
-      const response = await fetch('https://image-api.photoroom.com/v2/edit', {
+      const response = await fetch("https://image-api.photoroom.com/v2/edit", {
         method: "POST",
         headers: {
-          "x-api-key": apikey
+          "x-api-key": apikey || "",
         },
-        body: formData
+        body: formData,
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        console.error('API request failed', response.status, text);
+        console.error("API request failed", response.status, await response.text());
         throw new Error(`API request failed with status: ${response.status}`);
       }
 
       const data = await response.blob();
-      const url = window.URL.createObjectURL(data);
+      const url = URL.createObjectURL(data);
       setGeneratedImage(url);
-
     } catch (error) {
-      console.error(error);
+      console.error("Error generating image:", error);
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
 
@@ -144,8 +144,9 @@ export default function Home() {
             <button
               onClick={handleGenerateImage}
               disabled={loading}
-              className={`mt-2 py-2 px-6 font-semibold rounded-md focus:outline-none focus:ring-2 ${loading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600 text-white"
-                }`}
+              className={`mt-2 py-2 px-6 font-semibold rounded-md focus:outline-none focus:ring-2 ${
+                loading ? "bg-gray-500 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600 text-white"
+              }`}
             >
               {loading ? "Enhancing..." : "Try"}
             </button>
@@ -156,9 +157,10 @@ export default function Home() {
         {generatedImage && !loading && (
           <a
             className="text-blue-400 hover:text-blue-300 font-semibold underline px-4 py-2 rounded-md shadow-md transition duration-200 ease-in-out transform hover:scale-105"
-            download={true}
+            download
             href={generatedImage}
             target="_blank"
+            rel="noopener noreferrer"
           >
             Download Enhanced Image
           </a>
@@ -167,24 +169,23 @@ export default function Home() {
 
       {/* Loader Styles */}
       <style jsx>{`
-    .loader {
-      border-top: 4px solid white;
-      border-right: 4px solid transparent;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% {
-        transform: rotate(0deg);
-      }
-      100% {
-        transform: rotate(360deg);
-      }
-    }
-  `}</style>
+        .loader {
+          border-top: 4px solid white;
+          border-right: 4px solid transparent;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </main>
-
   );
 }
